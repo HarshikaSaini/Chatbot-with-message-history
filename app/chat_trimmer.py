@@ -5,6 +5,8 @@ from operator import itemgetter
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.prompts import MessagesPlaceholder, ChatPromptTemplate
 from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_core.chat_history import BaseChatMessageHistory
+from langchain_community.chat_message_histories import ChatMessageHistory
 import os
 from dotenv import load_dotenv
 load_dotenv()
@@ -55,3 +57,18 @@ response = chain.invoke({
 })
 
 print(response.content)
+
+## 4. WRAP UP - we can also use the trimmer as part of a RunnableWithMessageHistory to automatically trim the messages in the message history before invoking the model.
+store = {}
+def get_session_history(session_id)->BaseChatMessageHistory:
+    if session_id not in store:
+        store[session_id] = ChatMessageHistory()
+    return store[session_id]
+
+with_message_history = RunnableWithMessageHistory(
+    chain,
+    get_session_history,
+    input_messages_key="messages"
+    
+)
+config = {"configurable":{"session_id":"chat1"}}
