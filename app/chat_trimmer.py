@@ -1,6 +1,10 @@
 from langchain_core.messages import SystemMessage,trim_messages,HumanMessage,AIMessage
 from langchain_groq import ChatGroq
 from langchain_core.messages.utils import count_tokens_approximately
+from operator import itemgetter
+from langchain_core.runnables import RunnablePassthrough
+from langchain_core.prompts import MessagesPlaceholder, ChatPromptTemplate
+from langchain_core.runnables.history import RunnableWithMessageHistory
 import os
 from dotenv import load_dotenv
 load_dotenv()
@@ -30,6 +34,24 @@ messages=[
     HumanMessage(content="My favorite food is pizza"),
     AIMessage(content="That's a great choice! Pizza is delicious."),
 ]
+## 1. we trimmed the messages to fit within the token limit and then invoked the model with the trimmed messages.
+trimmer.invoke(messages)
 
-response = trimmer.invoke(messages)
-print(response)
+prompt = ChatPromptTemplate.from_messages([
+    ("system", "You are a helpful assistant. Answer all the question in {language}."),
+    MessagesPlaceholder(variable_name="messages")
+])
+
+## 2. we can also use the trimmer as part of a chain to automatically trim the messages before invoking the model. 
+# In this example, we are using the trimmer as a RunnablePassthrough to trim the messages before passing them to the prompt and then to the model. 
+# This way, we don't have to manually trim the messages every time we want to invoke the model, it will be done automatically as part of the chain.
+chain = (RunnablePassthrough.assign(messages=itemgetter("messages") | trimmer )
+         | prompt | model)
+
+## 3. we invoke the chain with the input messages and the language, and the trimmer will automatically trim the messages to fit within the token limit before passing them to the prompt and then to the model.
+response = chain.invoke({
+    "messages":messages + [HumanMessage(content="What is my favorite color?")],
+    "language":"English"
+})
+
+print(response.content)
